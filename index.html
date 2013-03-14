@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Cooking Helper</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
+<style>
+	#total-calorie-count-container {
+		bottom: 0;
+		background-color: #eeeeee;
+		padding: 5px;
+		width: 100%;
+		position: fixed;
+	}
+	
+	#static-page {
+		padding-bottom: 300px;
+	}
+	
+	input {
+		width: auto;
+	}
+</style>
+</head>
+<body>
+<div id="static-page" class="container">
+<h1>Cooking Helper</h1>
+<table id="ingredient-table" class="table table-striped table-bordered table-condensed">
+	<thead>
+	<tr>
+		<th>Ingredient</th>
+		<th>Calories per Cup</th>
+		<th>Calories per Unit</th>
+		<th>Cups</th>
+		<th>Units</th>
+		<th>Calories</th>
+	</tr>
+	</thead>
+	<tbody>
+	</tbody>
+</table>
+</div>
+
+<div id="total-calorie-count-container">
+	<table class="table table-condensed table-striped">
+	<tr>
+		<th>
+		Total Grain Calories
+		</th>
+		<td>
+		<span id="total-calorie-count" data-bind="text: totalGrainCalorieCount"></span>
+		</td>
+	</tr>
+	<tr>
+		<th>
+		Total Vegetable Calories
+		</th>
+		<td>
+		<span id="total-calorie-count" data-bind="text: totalVegetableCalorieCount"></span>
+		</td>
+	</tr>
+	<tr>
+		<th>
+		Total Meat Calories
+		</th>
+		<td>
+		<span id="total-calorie-count" data-bind="text: totalMeatCalorieCount"></span>
+		</td>
+	</tr>
+	<tr>
+		<th>
+		<strong>Total Calories</strong>
+		</th>
+		<td>
+		<span id="total-calorie-count" data-bind="text: totalCalorieCount"></span>
+		</td>
+	</tr>
+</div>
+
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+
+<script src="http://cdnjs.cloudflare.com/ajax/libs/knockout/2.2.0/knockout-min.js"></script>
+
+<script>
+var foodGroups = {
+	grain: 'grain', vegetable: 'vegetable', meat: 'meat', dairy: 'dairy', other: 'other'
+};
+
+var ingredientsInfo = 
+{
+	'ingredients':
+		[
+			{
+				name: 'rice',
+				caloriesPerCup: 242,
+				isCooked: true,
+				volumeCookedPerUncooked: 2,
+				foodGroup: foodGroups.grain
+			},
+			{
+				name: 'onion',
+				caloriesPerCup: 16,
+				caloriesPerUnit: 64,
+				defaultUnitOfMeasurement: 'unit',
+				foodGroup: foodGroups.vegetable
+			},
+			{
+				name: 'carrot',
+				caloriesPerCup: 52,
+				foodGroup: foodGroups.vegetable
+			},
+			{
+				name: 'broccoli',
+				caloriesPerCup: 25,
+				foodGroup: foodGroups.vegetable
+			},
+			{
+				name: 'cabbage',
+				caloriesPerCup: 22,
+				foodGroup: foodGroups.vegetable
+			},
+			{
+				name: 'frozen brussel sprouts',
+				caloriesPerUnit: 7.5,
+				foodGroup: foodGroups.vegetable
+			},
+			{
+				name: 'green onion',
+				caloriesPerCup: 40,
+				defaultUnitOfMeasurement: '1/4 cup',
+				foodGroup: foodGroups.vegetable
+			},
+			{
+				name: 'ginger',
+				caloriesPerCup: 76,
+				defaultUnitOfMeasurement: '1/4 cup',
+				foodGroup: foodGroups.vegetable
+			},
+			{
+				name: 'poached egg',
+				caloriesPerUnit: 71,
+				foodGroup: foodGroups.meat
+			},
+			{
+				name: 'other calories',
+				caloriesPerUnit: 1,
+				foodGroup: foodGroups.other
+			}
+		]
+};
+
+var ingredients = ingredientsInfo.ingredients;
+</script>
+
+<script>
+(function () {
+	var knockoutViewModel = { ingredients: ingredients };
+
+	var $ingredientTable = $('#ingredient-table tbody');
+	var i, ingredient;
+	
+	var calculateCaloriesForIngredient = function (ingredient) {
+		var total = 0;
+		var caloriesForIngredient =
+			(ingredient.caloriesPerCup || 0) * ingredient.quantityInCups() +
+			(ingredient.caloriesPerUnit || 0) * ingredient.quantityInUnits();
+		total += caloriesForIngredient;
+		return total;
+	};
+	
+	for (i = 0; i < ingredients.length; i += 1) {
+		ingredient = ingredients[i];
+		ingredient.quantityInCups = ko.observable(0);
+		ingredient.quantityInUnits = ko.observable(0);
+	
+		var caloriesComputedFunction = (function (ingredient) {
+			var computedFunction = function () {
+				return calculateCaloriesForIngredient(ingredient);
+			}
+			return computedFunction;
+		}(ingredient))
+
+		ingredient.calories = ko.computed(caloriesComputedFunction);
+	
+		$ingredientTable.append('<tr>' +
+			'<td>' + ingredient.name + (ingredient.isCooked ? ' (cooked)' : '') + '</td>' +
+			'<td>' + (ingredient.caloriesPerCup || 'N/A') + '</td>' +
+			'<td>' + (ingredient.caloriesPerUnit || 'N/A') + '</td>' +
+			'<td>' +
+			'<input type="text" size="5" data-bind="value: ingredients[' + i + '].quantityInCups, valueUpdate: \'afterkeydown\'" />' +
+			'</td>' +
+			'<td>' +
+			'<input type="text" size="5" data-bind="value: ingredients[' + i + '].quantityInUnits, valueUpdate: \'afterkeydown\'" />' +
+			'</td>' +
+			'<td data-bind="text: ingredients[' + i + '].calories"></td>' +
+			'</tr>');
+	}
+	
+	var calculateTotalCalorieCountForFoodGroup = function (foodGroup) {
+		var i, ingredient, total = 0;
+		for (i = 0; i < ingredients.length; i += 1) {
+			ingredient = ingredients[i];
+			if (ingredient.foodGroup === foodGroup) {
+				total += ingredient.calories();
+			}
+		}
+		return total;
+	};
+
+	knockoutViewModel.totalGrainCalorieCount = ko.computed(function () {
+		return calculateTotalCalorieCountForFoodGroup(foodGroups.grain);
+	});
+	
+	knockoutViewModel.totalVegetableCalorieCount = ko.computed(function () {
+		return calculateTotalCalorieCountForFoodGroup(foodGroups.vegetable);
+	});
+
+	knockoutViewModel.totalMeatCalorieCount = ko.computed(function () {
+		return calculateTotalCalorieCountForFoodGroup(foodGroups.meat);
+	});
+
+	knockoutViewModel.totalOtherCalorieCount = ko.computed(function () {
+		return calculateTotalCalorieCountForFoodGroup(foodGroups.other);
+	});
+
+	knockoutViewModel.totalCalorieCount = ko.computed(function () {
+		var total =
+			knockoutViewModel.totalGrainCalorieCount() +
+			knockoutViewModel.totalVegetableCalorieCount() +
+			knockoutViewModel.totalMeatCalorieCount() +
+			knockoutViewModel.totalOtherCalorieCount();
+		return total;
+	});
+
+	ko.applyBindings(knockoutViewModel);
+}());
+
+</script>
+</body>
